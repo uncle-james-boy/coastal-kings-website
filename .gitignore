@@ -53,6 +53,10 @@ infrastructure/terraform/.terraform/
 infrastructure/terraform/*.tfstate
 infrastructure/terraform/*.tfstate.backup
 *.tfvars
+.terraform/
+*.tfstate
+*.tfstate.backup
 
 # AWS
 .DS_Store
+
