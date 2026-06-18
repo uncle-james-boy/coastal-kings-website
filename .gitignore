@@ -60,3 +60,5 @@ infrastructure/terraform/*.tfstate.backup
 # AWS
 .DS_Store
 
+# Terraform generated files
+infrastructure/terraform/lambda.zip
