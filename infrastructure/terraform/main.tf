@@ -109,3 +109,56 @@ resource "aws_lambda_function" "register_player" {
     Project = "Coastal Kings Academy"
   }
 }
+
+# ==========================================
+# 4. API GATEWAY (The Phone Line)
+# ==========================================
+
+# Step A: Create the HTTP API
+resource "aws_apigatewayv2_api" "coastal_kings_api" {
+  name          = "coastal-kings-api"
+  protocol_type = "HTTP" # Modern, cheaper, and faster than REST
+  
+  cors_configuration {
+    allow_origins = ["*"] # In production, change this to my actual Vercel domain!
+    allow_methods = ["POST", "OPTIONS"]
+    allow_headers = ["Content-Type"]
+  }
+}
+
+# Step B: Create the Deployment Stage (The "Live" environment)
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.coastal_kings_api.id
+  name        = "$default"
+  auto_deploy = true # Automatically deploys when I make changes
+}
+
+# Step C: Connect API Gateway to Lambda (The Integration)
+resource "aws_apigatewayv2_integration" "lambda_integration" {
+  api_id                 = aws_apigatewayv2_api.coastal_kings_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.register_player.invoke_arn
+  payload_format_version = "2.0"
+}
+
+# Step D: Create the Route (The specific "Phone Number")
+resource "aws_apigatewayv2_route" "register_route" {
+  api_id    = aws_apigatewayv2_api.coastal_kings_api.id
+  route_key = "POST /register" # When someone POSTs to /register...
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}" # ...send it to this integration
+}
+
+# Step E: Give API Gateway permission to call Lambda (CRITICAL!)
+resource "aws_lambda_permission" "api_gateway" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.register_player.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.coastal_kings_api.execution_arn}/*/*"
+}
+
+# Step F: Output the URL so I can copy it easily!
+output "api_gateway_url" {
+  value       = "${aws_apigatewayv2_api.coastal_kings_api.api_endpoint}/register"
+  description = "The public URL to send registration requests to."
+}

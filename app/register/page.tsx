@@ -3,7 +3,6 @@
 import { useState } from "react"
 
 export default function RegisterPage() {
-
   const [form, setForm] = useState({
     playerName: "",
     age: "",
@@ -12,6 +11,9 @@ export default function RegisterPage() {
     email: "",
     program: ""
   })
+  
+  // Added a loading state to prevent double submissions
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -19,17 +21,41 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault()
+    setIsSubmitting(true)
 
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(form)
-    })
+    try {
+      // Map your form data to what our AWS Lambda expects
+      const payload = {
+        playerName: form.playerName,
+        parentEmail: form.email // Lambda expects 'parentEmail', so we map your 'email' field to it
+      }
 
-    const data = await res.json()
-    alert(data.message)
+      // Send data to AWS API Gateway
+      const res = await fetch(process.env.NEXT_PUBLIC_API_URL as string, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await res.json()
+      
+      if (res.ok) {
+        alert("🎉 " + data.message)
+        // Clear the form after success
+        setForm({
+          playerName: "", age: "", parentName: "", phone: "", email: "", program: ""
+        })
+      } else {
+        alert("❌ Something went wrong. Please try again.")
+      }
+    } catch (error) {
+      console.error("Error:", error)
+      alert("❌ Network error. Please check your connection.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -47,15 +73,19 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6 border border-yellow-500/20 p-8 rounded-2xl backdrop-blur-md shadow-xl">
 
-          <input name="playerName" placeholder="Player Name" onChange={handleChange} className="w-full p-3 rounded bg-white/10" required />
-          <input name="age" placeholder="Age" onChange={handleChange} className="w-full p-3 rounded bg-white/10" required />
-          <input name="parentName" placeholder="Parent Name" onChange={handleChange} className="w-full p-3 rounded bg-white/10" required />
-          <input name="phone" placeholder="Phone Number" onChange={handleChange} className="w-full p-3 rounded bg-white/10" required />
-          <input name="email" placeholder="Email Address" onChange={handleChange} className="w-full p-3 rounded bg-white/10" required />
-          <input name="program" placeholder="Preferred Program" onChange={handleChange} className="w-full p-3 rounded bg-white/10" required />
+          <input name="playerName" placeholder="Player Name" onChange={handleChange} value={form.playerName} className="w-full p-3 rounded bg-white/10" required />
+          <input name="age" placeholder="Age" onChange={handleChange} value={form.age} className="w-full p-3 rounded bg-white/10" required />
+          <input name="parentName" placeholder="Parent Name" onChange={handleChange} value={form.parentName} className="w-full p-3 rounded bg-white/10" required />
+          <input name="phone" placeholder="Phone Number" onChange={handleChange} value={form.phone} className="w-full p-3 rounded bg-white/10" required />
+          <input name="email" placeholder="Email Address" onChange={handleChange} value={form.email} className="w-full p-3 rounded bg-white/10" required />
+          <input name="program" placeholder="Preferred Program" onChange={handleChange} value={form.program} className="w-full p-3 rounded bg-white/10" required />
 
-          <button className="w-full bg-yellow-500 text-black font-bold py-3 rounded hover:scale-105 transition">
-            Submit Registration
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="w-full bg-yellow-500 text-black font-bold py-3 rounded hover:scale-105 transition disabled:opacity-50 disabled:hover:scale-100"
+          >
+            {isSubmitting ? "Sending to AWS..." : "Submit Registration"}
           </button>
 
         </form>
